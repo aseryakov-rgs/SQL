@@ -1,7 +1,7 @@
 /**********************************************************************
 
-    sp_MyProc — Saves the live execution plan (Live Query Plan) to a file.
-    Source:   https://github.com/aseryakov-rgs/SQL/LiveQueryPlanMSSQL
+    sp_MyProc пїЅ Saves the live execution plan (Live Query Plan) to a file.
+    Source:   https://github.com/aseryakov-rgs/SQL/tree/main/LiveQueryPlanMSSQL
     Version:  1.2.0  (2026-10-22)
     Author:   Aleksandr Seryakov aleksandr.rgspc@gmail.com
 
@@ -13,7 +13,7 @@
     in the Software without restriction ... (full text MIT)
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND ...
-    Full license text: https://github.com/aseryakov-rgs/SQL/LiveQueryPlanMSSQL/main/LICENSE
+    Full license text: https://github.com/aseryakov-rgs/SQL/tree/main/LiveQueryPlanMSSQL/LICENSE.txt
 
   Saves the live execution plan (Live Query Plan) to a file.
   If there is no data in sys.dm_exec_query_profiles, the script automatically
@@ -24,25 +24,25 @@
  - VIEW SERVER STATE, ALTER ANY EVENT SESSION permissions
  - xp_cmdshell enabled (sp_configure 'xp_cmdshell', 1)
  - the directory for saving exists and is accessible to the SQL Server service
-  Сохраняет живой план выполнения (Live Query Plan) в файл.
-  Если в sys.dm_exec_query_profiles нет данных, скрипт автоматически
-  создаёт временный XE-сеанс с query_post_execution_showplan,
-  собирает план и удаляет сеанс.
+  пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (Live Query Plan) пїЅ пїЅпїЅпїЅпїЅ.
+  пїЅпїЅпїЅпїЅ пїЅ sys.dm_exec_query_profiles пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+  пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ пїЅ query_post_execution_showplan,
+  пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.
 
-  Требует:
-    - права VIEW SERVER STATE, ALTER ANY EVENT SESSION
-    - включённый xp_cmdshell (sp_configure 'xp_cmdshell', 1)
-    - каталог для сохранения существует и доступен службе SQL Server
+  пїЅпїЅпїЅпїЅпїЅпїЅпїЅ:
+    - пїЅпїЅпїЅпїЅпїЅ VIEW SERVER STATE, ALTER ANY EVENT SESSION
+    - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ xp_cmdshell (sp_configure 'xp_cmdshell', 1)
+    - пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ SQL Server
 **********************************************************************/
 
 SET NOCOUNT ON;
 
 ------------------------------------------------------------------
--- 1. ПАРАМЕТРЫ (при необходимости измените)
+-- 1. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 ------------------------------------------------------------------
-DECLARE @SessionId      INT           = 0;                    -- 0 = все сессии, иначе конкретный session_id
-DECLARE @DatabaseName   SYSNAME       = N'DBName';        -- <-- ИМЯ ВАШЕЙ БАЗЫ
-DECLARE @OutputDir      NVARCHAR(400) = N'F:\MSSQL\Plans\';    -- каталог ДОЛЖЕН существовать
+DECLARE @SessionId      INT           = 0;                    -- 0 = пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ session_id
+DECLARE @DatabaseName   SYSNAME       = N'DBName';        -- <-- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
+DECLARE @OutputDir      NVARCHAR(400) = N'F:\MSSQL\Plans\';    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 DECLARE @Timestamp      NVARCHAR(20)  = REPLACE(REPLACE(REPLACE(CONVERT(NVARCHAR(19), GETDATE(), 120), '-', ''), ':', ''), ' ', '_');
 DECLARE @PlanFile       NVARCHAR(500);
 DECLARE @MetricsFile    NVARCHAR(500);
@@ -54,13 +54,13 @@ DECLARE @SqlText        NVARCHAR(MAX);
 DECLARE @CurSessionId   INT;
 DECLARE @ErrMsg         NVARCHAR(2048);
 
--- Для управления XE-сеансом
+-- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 DECLARE @XeSessionName  SYSNAME       = N'LivePlanCapture_' + @Timestamp;
 DECLARE @XeCreated      BIT           = 0;
 DECLARE @XeCmd          NVARCHAR(MAX);
 
 ------------------------------------------------------------------
--- 2. Проверка каталога (через xp_cmdshell + if exist)
+-- 2. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ xp_cmdshell + if exist)
 ------------------------------------------------------------------
 IF RIGHT(@OutputDir, 1) <> N'\' SET @OutputDir = @OutputDir + N'\';
 
@@ -72,13 +72,13 @@ EXEC master.dbo.xp_cmdshell @DirCheckCmd;
 
 IF NOT EXISTS (SELECT 1 FROM @DirCheck WHERE output = N'EXISTS')
 BEGIN
-    SET @ErrMsg = N'Каталог ' + @OutputDir + N' не существует или недоступен учётной записи службы SQL Server. Создайте его вручную и проверьте права.';
+    SET @ErrMsg = N'пїЅпїЅпїЅпїЅпїЅпїЅпїЅ ' + @OutputDir + N' пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ SQL Server. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.';
     RAISERROR(@ErrMsg, 16, 1);
     RETURN;
 END;
 
 ------------------------------------------------------------------
--- 3. Функция сбора данных из DMV (повторно используется)
+-- 3. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ DMV (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 ------------------------------------------------------------------
 IF OBJECT_ID('tempdb..#Profiles') IS NOT NULL DROP TABLE #Profiles;
 
@@ -98,7 +98,7 @@ CREATE TABLE #Profiles
 );
 
 ------------------------------------------------------------------
--- 4. Первая попытка: собрать данные «как есть»
+-- 4. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 ------------------------------------------------------------------
 INSERT INTO #Profiles
 SELECT
@@ -120,11 +120,11 @@ WHERE (@SessionId = 0 OR qp.session_id = @SessionId)
   AND d.name = @DatabaseName;
 
 ------------------------------------------------------------------
--- 5. Если данных нет — создаём временный XE-сеанс
+-- 5. пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ
 ------------------------------------------------------------------
 IF NOT EXISTS (SELECT 1 FROM #Profiles)
 BEGIN
-    PRINT N'Данных в sys.dm_exec_query_profiles нет. Создаю временный XE-сеанс...';
+    PRINT N'пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ sys.dm_exec_query_profiles пїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ...';
 
     SET @XeCmd = N'
     CREATE EVENT SESSION [' + @XeSessionName + N'] ON SERVER
@@ -144,19 +144,19 @@ BEGIN
         EXEC sp_executesql @XeCmd;
 
         SET @XeCreated = 1;
-        PRINT N'XE-сеанс ' + @XeSessionName + N' создан и запущен.';
+        PRINT N'XE-пїЅпїЅпїЅпїЅпїЅ ' + @XeSessionName + N' пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.';
     END TRY
     BEGIN CATCH
-        SET @ErrMsg = N'Не удалось создать XE-сеанс: ' + ERROR_MESSAGE();
+        SET @ErrMsg = N'пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ: ' + ERROR_MESSAGE();
         RAISERROR(@ErrMsg, 16, 1);
         RETURN;
     END CATCH;
 
-    -- Даём сеансу время накопить данные (можно увеличить при необходимости)
+    -- пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
     WAITFOR DELAY '00:00:05';
 
     ------------------------------------------------------------------
-    -- Повторная попытка сбора данных после включения XE
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE
     ------------------------------------------------------------------
     INSERT INTO #Profiles
     SELECT
@@ -179,11 +179,11 @@ BEGIN
 END;
 
 ------------------------------------------------------------------
--- 6. Если данных всё равно нет — сообщаем и выходим
+-- 6. пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 ------------------------------------------------------------------
 IF NOT EXISTS (SELECT 1 FROM #Profiles)
 BEGIN
-    -- Убираем временный XE-сеанс, если создавали
+    -- пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     IF @XeCreated = 1
     BEGIN
         BEGIN TRY
@@ -193,18 +193,18 @@ BEGIN
             EXEC sp_executesql @XeCmd;
         END TRY
         BEGIN CATCH
-            PRINT N'Не удалось удалить XE-сеанс: ' + ERROR_MESSAGE();
+            PRINT N'пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ: ' + ERROR_MESSAGE();
         END CATCH;
     END;
 
-    SET @ErrMsg = N'Нет данных в sys.dm_exec_query_profiles для БД ' + @DatabaseName 
-                + N' даже после включения XE-сеанса. Убедитесь, что анализируемый запрос выполняется, и повторите попытку.';
+    SET @ErrMsg = N'пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ sys.dm_exec_query_profiles пїЅпїЅпїЅ пїЅпїЅ ' + @DatabaseName 
+                + N' пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.';
     RAISERROR(@ErrMsg, 16, 1);
     RETURN;
 END;
 
 ------------------------------------------------------------------
--- 7. Сохранение планов и метрик по каждой сессии
+-- 7. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 ------------------------------------------------------------------
 DECLARE cur CURSOR LOCAL FAST_FORWARD FOR
     SELECT DISTINCT session_id FROM #Profiles ORDER BY session_id;
@@ -215,7 +215,7 @@ FETCH NEXT FROM cur INTO @CurSessionId;
 WHILE @@FETCH_STATUS = 0
 BEGIN
     ------------------------------------------------------------------
-    -- 7.1. XML-план
+    -- 7.1. XML-пїЅпїЅпїЅпїЅ
     ------------------------------------------------------------------
     SET @PlanXml = NULL;
 
@@ -235,7 +235,7 @@ BEGIN
     END
 
     ------------------------------------------------------------------
-    -- 7.2. Метрики операторов (CSV)
+    -- 7.2. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (CSV)
     ------------------------------------------------------------------
     SET @MetricsFile = @OutputDir + N'LiveMetrics_' + @Timestamp + N'_sid' + CAST(@CurSessionId AS NVARCHAR(10)) + N'.csv';
 
@@ -258,7 +258,7 @@ BEGIN
              + CHAR(13) + CHAR(10) + @Csv;
 
     ------------------------------------------------------------------
-    -- 7.3. SQL-текст запроса
+    -- 7.3. SQL-пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     ------------------------------------------------------------------
     SET @SqlText = NULL;
 
@@ -283,7 +283,7 @@ CLOSE cur;
 DEALLOCATE cur;
 
 ------------------------------------------------------------------
--- 8. Удаление временного XE-сеанса (если создавали)
+-- 8. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 ------------------------------------------------------------------
 IF @XeCreated = 1
 BEGIN
@@ -292,11 +292,11 @@ BEGIN
         EXEC sp_executesql @XeCmd;
         SET @XeCmd = N'DROP EVENT SESSION [' + @XeSessionName + N'] ON SERVER;';
         EXEC sp_executesql @XeCmd;
-        PRINT N'Временный XE-сеанс ' + @XeSessionName + N' удалён.';
+        PRINT N'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ ' + @XeSessionName + N' пїЅпїЅпїЅпїЅпїЅ.';
     END TRY
     BEGIN CATCH
-        PRINT N'Не удалось удалить XE-сеанс: ' + ERROR_MESSAGE();
+        PRINT N'пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ XE-пїЅпїЅпїЅпїЅпїЅ: ' + ERROR_MESSAGE();
     END CATCH;
 END;
 
-PRINT N'Готово. Файлы сохранены в ' + @OutputDir;
+PRINT N'пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ ' + @OutputDir;
